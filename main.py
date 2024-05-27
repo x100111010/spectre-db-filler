@@ -41,7 +41,6 @@ if not spectred_hosts:
 
 # create Spectred client
 client = SpectredMultiClient(spectred_hosts)
-task_runner = None
 
 
 async def main():
@@ -56,7 +55,7 @@ async def main():
     # find last acceptedTx's block hash, when restarting this tool
     start_hash = KeyValueStore.get("vspc_last_start_hash")
 
-    # if there is nothing in the db, just get latest block.
+    # if there is nothing in the db, just get the first block after genesis.
     if not start_hash:
         daginfo = await client.request("getBlockDagInfoRequest", {})
         start_hash = daginfo["getBlockDagInfoResponse"]["virtualParentHashes"][0]
@@ -64,22 +63,8 @@ async def main():
     _logger.info(f"Start hash: {start_hash}")
 
     # create instances of blocksprocessor and virtualchainprocessor
-    bp = BlocksProcessor(client)
     vcp = VirtualChainProcessor(client, start_hash)
-
-    async def handle_blocks_commited(e):
-        """
-        this function is executed, when a new cluster of blocks were added to the database
-        """
-        global task_runner
-        if task_runner and not task_runner.done():
-            return
-
-        _logger.debug('Update is_accepted for TXs.')
-        task_runner = asyncio.create_task(vcp.yield_to_database())
-
-    # set up event to fire after adding new blocks
-    bp.on_commited += handle_blocks_commited
+    bp = BlocksProcessor(client, vcp)
 
     # start blocks processor working concurrent
     while True:

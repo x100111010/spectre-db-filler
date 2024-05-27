@@ -24,6 +24,9 @@ class VirtualChainProcessor(object):
         self.start_point = start_point
         self.client = client
 
+    def set_new_start_point(self, start_point):
+        self.start_point = start_point
+
     async def __update_transactions_in_db(self):
         """
         goes through one parentChainResponse and updates the is_accepted field in the database.
@@ -31,9 +34,6 @@ class VirtualChainProcessor(object):
         accepted_ids = []
         rejected_blocks = []
         last_known_chain_block = None
-
-        if self.virtual_chain_response is None:
-            return
 
         parent_chain_response = self.virtual_chain_response
         parent_chain_blocks = [x['acceptingBlockHash'] for x in parent_chain_response['acceptedTransactionIds']]
@@ -82,13 +82,15 @@ class VirtualChainProcessor(object):
             _logger.debug(f'Set is_accepted=True for {count_tx} transactions.')
             s.commit()
 
+        # Clear the current response
+        self.virtual_chain_response = None
+
         # Mark last known/processed as start point for the next query
         if last_known_chain_block:
             KeyValueStore.set("vspc_last_start_hash", last_known_chain_block)
             self.start_point = last_known_chain_block
+            await self.yield_to_database()
 
-        # Clear the current response
-        self.virtual_chain_response = None
 
     async def yield_to_database(self):
         """
@@ -97,8 +99,7 @@ class VirtualChainProcessor(object):
         resp = await self.client.request("getVirtualSelectedParentChainFromBlockRequest",
                                          {"startHash": self.start_point,
                                           "includeAcceptedTransactionIds": True},
-                                         timeout=240)
-
+                                         timeout=120)
         # if there is a response, add to queue and set new startpoint
         if resp["getVirtualSelectedParentChainFromBlockResponse"]:
             _logger.debug(f'Got response with '
@@ -109,4 +110,5 @@ class VirtualChainProcessor(object):
             _logger.debug('Empty response.')
             self.virtual_chain_response = None
 
-        asyncio.create_task(self.__update_transactions_in_db())
+        if self.virtual_chain_response is not None:
+            await self.__update_transactions_in_db()

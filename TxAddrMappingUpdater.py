@@ -66,8 +66,10 @@ class TxAddrMappingUpdater(object):
                     continue
                 raise
 
-            _logger.info(f"Updated {count_inputs} input mappings.")
-            _logger.info(f"Updated {count_outputs} outputs mappings.")
+            if count_inputs > 0:
+                _logger.info(f"Updated {count_inputs} input mappings.")
+            if count_outputs > 0:
+                _logger.info(f"Updated {count_outputs} outputs mappings.")
 
             last_id_counter_inputs = self.id_counter_inputs
             last_id_counter_outputs = self.id_counter_outputs
@@ -76,13 +78,9 @@ class TxAddrMappingUpdater(object):
             self.id_counter_inputs = max_in
             self.id_counter_outputs = max_out
 
-            _logger.debug(f"Next TX-Input ID: {self.id_counter_inputs}." +
-                          (f" ({datetime.fromtimestamp(new_last_block_time_inputs / 1000).isoformat()})"
-                           if new_last_block_time_inputs else ""))
+            _logger.debug(f"Next TX-Input ID: {self.id_counter_inputs}.")
 
-            _logger.debug(f"Next TX-Output ID: {self.id_counter_outputs}." +
-                          (f" ({datetime.fromtimestamp(new_last_block_time_outputs / 1000).isoformat()})"
-                           if new_last_block_time_outputs else ""))
+            _logger.debug(f"Next TX-Output ID: {self.id_counter_outputs}.")
 
             if last_id_counter_inputs + LIMIT > self.id_counter_inputs and \
                     last_id_counter_outputs + LIMIT > self.id_counter_outputs:
