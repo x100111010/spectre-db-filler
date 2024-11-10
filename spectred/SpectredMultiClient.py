@@ -2,6 +2,7 @@
 import asyncio
 
 from spectred.SpectredClient import SpectredClient
+
 # pipenv run python -m grpc_tools.protoc -I./protos --python_out=. --grpc_python_out=. ./protos/rpc.proto ./protos/messages.proto ./protos/p2p.proto
 from spectred.SpectredThread import SpectredCommunicationError
 
@@ -23,10 +24,14 @@ class SpectredMultiClient(object):
 
     async def request(self, command, params=None, timeout=60):
         try:
-            return await self.__get_spectred().request(command, params, timeout=timeout, retry=1)
+            return await self.__get_spectred().request(
+                command, params, timeout=timeout, retry=1
+            )
         except SpectredCommunicationError:
             await self.initialize_all()
-            return await self.__get_spectred().request(command, params, timeout=timeout, retry=3)
+            return await self.__get_spectred().request(
+                command, params, timeout=timeout, retry=3
+            )
 
     async def notify(self, command, params, callback):
         return await self.__get_spectred().notify(command, params, callback)

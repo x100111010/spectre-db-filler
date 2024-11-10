@@ -6,7 +6,6 @@ from datetime import datetime, timedelta
 
 from dbsession import session_maker
 from helper import KeyValueStore
-from models.TxAddrMapping import TxAddrMapping
 
 LIMIT = 1000
 PRECONDITION_RETRIES = 2
@@ -21,9 +20,13 @@ class TxAddrMappingUpdater(object):
         self.id_counter_outputs = None
 
     def precondition(self):
-        with session_maker() as s:
-            self.id_counter_inputs = int(KeyValueStore.get("last_id_counter_inputs") or 0)
-            self.id_counter_outputs = int(KeyValueStore.get("last_id_counter_outputs") or 0)
+        with session_maker():
+            self.id_counter_inputs = int(
+                KeyValueStore.get("last_id_counter_inputs") or 0
+            )
+            self.id_counter_outputs = int(
+                KeyValueStore.get("last_id_counter_outputs") or 0
+            )
 
     @staticmethod
     def minimum_timestamp():
@@ -34,27 +37,34 @@ class TxAddrMappingUpdater(object):
 
         error_cnt = 0
 
-        _logger.debug('Start TxAddrMappingUpdater')  # type: TxAddrMapping
+        _logger.debug("Start TxAddrMappingUpdater")  # type: TxAddrMapping
 
         while True:
-
             # get max id ( either LIMIT or maximum in DB )
             with session_maker() as s:
-                max_in = min(self.id_counter_inputs + LIMIT,
-                             s.execute(
-                                 f"""SELECT id FROM transactions_inputs ORDER by id DESC LIMIT 1""")
-                             .scalar() or 0)
+                max_in = min(
+                    self.id_counter_inputs + LIMIT,
+                    s.execute(
+                        """SELECT id FROM transactions_inputs ORDER by id DESC LIMIT 1"""
+                    ).scalar()
+                    or 0,
+                )
 
-                max_out = min(self.id_counter_outputs + LIMIT,
-                              s.execute(
-                                  f"""SELECT id FROM transactions_outputs ORDER by id DESC LIMIT 1""")
-                              .scalar() or 0)
+                max_out = min(
+                    self.id_counter_outputs + LIMIT,
+                    s.execute(
+                        """SELECT id FROM transactions_outputs ORDER by id DESC LIMIT 1"""
+                    ).scalar()
+                    or 0,
+                )
 
             try:
-                count_outputs, new_last_block_time_outputs = self.update_outputs(self.id_counter_outputs,
-                                                                                 max_out)
-                count_inputs, new_last_block_time_inputs = self.update_inputs(self.id_counter_inputs,
-                                                                              max_in)
+                count_outputs, new_last_block_time_outputs = self.update_outputs(
+                    self.id_counter_outputs, max_out
+                )
+                count_inputs, new_last_block_time_inputs = self.update_inputs(
+                    self.id_counter_inputs, max_in
+                )
                 # save last runs ids in case of restart
                 KeyValueStore.set("last_id_counter_inputs", max_in)
                 KeyValueStore.set("last_id_counter_outputs", max_out)
@@ -82,19 +92,24 @@ class TxAddrMappingUpdater(object):
 
             _logger.debug(f"Next TX-Output ID: {self.id_counter_outputs}.")
 
-            if last_id_counter_inputs + LIMIT > self.id_counter_inputs and \
-                    last_id_counter_outputs + LIMIT > self.id_counter_outputs:
+            if (
+                last_id_counter_inputs + LIMIT > self.id_counter_inputs
+                and last_id_counter_outputs + LIMIT > self.id_counter_outputs
+            ):
                 time.sleep(10)
 
     def get_last_block_time(self, start_block_time):
         with session_maker() as s:
-            result = s.execute(f"""SELECT
+            result = s.execute(
+                f"""SELECT
                 transactions.block_time
                 
                 FROM transactions
                 WHERE transactions.block_time >= :blocktime
                  ORDER by transactions.block_time ASC
-                 LIMIT {LIMIT}""", {"blocktime": start_block_time}).all()
+                 LIMIT {LIMIT}""",
+                {"blocktime": start_block_time},
+            ).all()
 
         try:
             return result[-1][0]
@@ -103,8 +118,8 @@ class TxAddrMappingUpdater(object):
 
     def update_inputs(self, min_id: int, max_id: int):
         with session_maker() as s:
-
-            result = s.execute(f"""INSERT INTO tx_id_address_mapping (transaction_id, address, block_time)
+            result = s.execute(
+                """INSERT INTO tx_id_address_mapping (transaction_id, address, block_time)
 
                 SELECT DISTINCT * FROM (
                     SELECT transactions_inputs.transaction_id,
@@ -123,7 +138,9 @@ class TxAddrMappingUpdater(object):
                     ) as distinct_query
                     
                  ON CONFLICT DO NOTHING
-                         RETURNING block_time;""", {"minId": min_id, "maxId": max_id})
+                         RETURNING block_time;""",
+                {"minId": min_id, "maxId": max_id},
+            )
 
             s.commit()
 
@@ -135,7 +152,8 @@ class TxAddrMappingUpdater(object):
 
     def update_outputs(self, min_id: int, max_id: int):
         with session_maker() as s:
-            result = s.execute(f"""
+            result = s.execute(
+                """
             
                 INSERT INTO tx_id_address_mapping (transaction_id, address, block_time)
                 
@@ -146,7 +164,9 @@ class TxAddrMappingUpdater(object):
 				JOIN transactions ON transactions.transaction_id = sq.transaction_id)
                 
                  ON CONFLICT DO NOTHING
-                 RETURNING block_time;""", {"minId": min_id, "maxId": max_id})
+                 RETURNING block_time;""",
+                {"minId": min_id, "maxId": max_id},
+            )
 
             s.commit()
 

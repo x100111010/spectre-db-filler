@@ -13,9 +13,9 @@ def get(key):
 
 def set(key, value):
     with session_maker() as s:
-        result = s.execute(update(KeyValueModel)
-                                 .where(KeyValueModel.key == key)
-                                 .values(value=value))
+        result = s.execute(
+            update(KeyValueModel).where(KeyValueModel.key == key).values(value=value)
+        )
 
         if result.rowcount == 1:
             s.commit()

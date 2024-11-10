@@ -1,10 +1,20 @@
-from sqlalchemy import Column, String, Float, Boolean, ARRAY, Integer, BigInteger, TIMESTAMP, Index
+from sqlalchemy import (
+    Column,
+    String,
+    Float,
+    Boolean,
+    ARRAY,
+    Integer,
+    BigInteger,
+    TIMESTAMP,
+    Index,
+)
 
 from dbsession import Base
 
 
 class Block(Base):
-    __tablename__ = 'blocks'
+    __tablename__ = "blocks"
 
     hash = Column(String, primary_key=True)
     accepted_id_merkle_root = Column(String)

@@ -1,6 +1,3 @@
-import asyncio
-
-
 class Event(object):
     def __init__(self):
         self.callbacks = set()
@@ -22,9 +19,9 @@ class Event(object):
         return self
 
     def __get_evt_args(self, *args, **kwargs):
-        evt_args = {u"Args": args}
+        evt_args = {"Args": args}
         evt_args.update(kwargs)
-        evt_args[u"EventObject"] = self
+        evt_args["EventObject"] = self
         return evt_args
 
 
